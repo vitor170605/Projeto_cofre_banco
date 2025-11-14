@@ -9,52 +9,45 @@
 #include <windows.h>
 #include <stdlib.h>
 
-#define N_THREADS 5 // Número de threads (agências)
+#define N_THREADS 5 
 
-// --- Variáveis Globais ---
-double g_saldoBancario = 1000.0; // O recurso compartilhado (vulnerável)
-HANDLE hMutex; // Mutex para proteger o saldo bancário
 
-// --- Estrutura de Dados para Threads ---
+double g_saldoBancario = 1000.0; 
+HANDLE hMutex; 
+
+
 typedef struct {
     const char* nome;
-    int tipoOperacao; // 1 para Depósito, 2 para Saque
-    double valor;     // O valor da transação
+    int tipoOperacao; 
+    double valor;     
 } ThreadArgs;
 
 
-/*
- * Esta é a operação vulnerável de depósito.
- * O Sleep() simula o tempo de processamento.
- * NÃO MODIFIQUE ESTA FUNÇÃO.
- */
+
 void operacaoDeposito(const char* nome, double valor) {
-    // --- INÍCIO DA SESSÃO CRÍTICA ---
+    
     WaitForSingleObject(hMutex, INFINITE);
 
     printf("%s [Agencia] quer depositar %.2f...\n", nome, valor);
     fflush(stdout);
     
-    double saldoLocal = g_saldoBancario; // 1. LÊ o saldo
+    double saldoLocal = g_saldoBancario; 
     printf("%s [Agencia]... leu o saldo de %.2f\n", nome, saldoLocal);
     
-    Sleep(2000); // 2. SIMULA processamento (AQUI O BUG ACONTECE)
+    Sleep(2000); 
     
-    saldoLocal += valor; // 3. CALCULA o novo saldo
+    saldoLocal += valor; 
     
-    g_saldoBancario = saldoLocal; // 4. ESCREVE o novo saldo
+    g_saldoBancario = saldoLocal; 
     
     printf("%s [Agencia]... DEPOSITOU %.2f. Novo saldo (na sua visao): %.2f\n", nome, valor, g_saldoBancario);
     fflush(stdout);
 
     ReleaseMutex(hMutex);
-    // --- FIM DA SESSÃO CRÍTICA ---
+    
 }
 
-/*
- * Esta é a operação vulnerável de saque.
- * NÃO MODIFIQUE ESTA FUNÇÃO.
- */
+
 void operacaoSaque(const char* nome, double valor) {
     // --- INÍCIO DA SESSÃO CRÍTICA ---
     WaitForSingleObject(hMutex, INFINITE);
@@ -62,26 +55,23 @@ void operacaoSaque(const char* nome, double valor) {
     printf("%s [Agencia] quer sacar %.2f...\n", nome, valor);
     fflush(stdout);
 
-    double saldoLocal = g_saldoBancario; // 1. LÊ o saldo
+    double saldoLocal = g_saldoBancario; 
     printf("%s [Agencia]... leu o saldo de %.2f\n", nome, saldoLocal);
 
-    Sleep(1500); // 2. SIMULA processamento
+    Sleep(1500); 
     
-    saldoLocal -= valor; // 3. CALCULA o novo saldo
+    saldoLocal -= valor; 
     
-    g_saldoBancario = saldoLocal; // 4. ESCREVE o novo saldo
+    g_saldoBancario = saldoLocal; 
 
     printf("%s [Agencia]... SACOU %.2f. Novo saldo (na sua visao): %.2f\n", nome, valor, g_saldoBancario);
     fflush(stdout);
 
     ReleaseMutex(hMutex);
-    // --- FIM DA SESSÃO CRÍTICA ---
+
 }
 
-/*
- * A rotina principal da thread.
- * Analise esta função para encontrar onde proteger.
- */
+
 DWORD WINAPI threadRoutine(LPVOID lpParam) {
     ThreadArgs* args = (ThreadArgs*)lpParam;
     
@@ -91,23 +81,22 @@ DWORD WINAPI threadRoutine(LPVOID lpParam) {
         operacaoSaque(args->nome, args->valor);
     }
     
-    free(args); // Libera a memória dos argumentos
+    free(args); 
     return 0;
 }
 
 int main() {
-    // --- DADOS DAS TRANSAÇÕES (Sinta-se livre para alterar para testar) ---
+
     const char* nomes[N_THREADS] = {"Agencia_A", "Agencia_B", "Caixa_C", "Agencia_D", "Caixa_E"};
-    int operacoes[N_THREADS] = {1, 2, 1, 2, 1}; // 1=Dep, 2=Saque
+    int operacoes[N_THREADS] = {1, 2, 1, 2, 1}; 
     double valores[N_THREADS] = {500.0, 300.0, 200.0, 700.0, 100.0};
-    // Saldo esperado: 1000 + 500 - 300 + 200 - 700 + 100 = 800.00
-    // ---------------------------------------------------------------------
+    
 
     // 1. Inicializa o Mutex
     hMutex = CreateMutex(
-        NULL,              // Atributos de segurança padrão
-        FALSE,             // O chamador não é o proprietário inicial
-        NULL               // Nome do objeto mutex (NULL para anônimo)
+        NULL,              
+        FALSE,             
+        NULL               
     );
 
     if (hMutex == NULL) {
@@ -142,7 +131,7 @@ int main() {
         }
     }
 
-    // Espera todas as threads terminarem
+    
     WaitForMultipleObjects(N_THREADS, threads, TRUE, INFINITE);
 
     printf("-------------------------------------------\n");
@@ -150,7 +139,7 @@ int main() {
     printf("SALDO FINAL (CORRIGIDO): %.2f\n", g_saldoBancario);
     printf("Saldo esperado (correto): 800.00\n");
 
-    // 2. Limpa os handles das threads e do Mutex
+    
     i = 0;
     for (i; i < N_THREADS; ++i) {
         CloseHandle(threads[i]);
